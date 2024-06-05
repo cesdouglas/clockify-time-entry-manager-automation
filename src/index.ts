@@ -137,19 +137,9 @@ const insertTimeEntry = async (user: any) => {
   }
 }
 
-const insertTimeEntryInParallel = async (users: any[]) => {
-  const insertTimeEntryPromises: Promise<any>[] = [];
-
+const insertTimeEntryForUsers = async (users: any[]) => {
   for (const user of users) {
-    insertTimeEntryPromises.push(insertTimeEntry(user));
-  }
-
-  const results = await Promise.allSettled(insertTimeEntryPromises);
-
-  const insertTimeEntryRejectedPromiseReasons = results.filter((result: any) => result.status === 'rejected').map((result: any) => result.reason)
-
-  if (insertTimeEntryRejectedPromiseReasons.length > 0) {
-    console.log(insertTimeEntryRejectedPromiseReasons);
+    await insertTimeEntry(user);
   }
 }
 
@@ -191,29 +181,24 @@ const removeUsersFromProject = async (userIds: string[]) => {
 }
 
 const filterUsersAlreadyHaveTimeEntry = async (users: any[]) => {
-  const promises: Promise<any>[] = [];
-
   const entryStartDateFormatted = moment(ENTRY_START_DATE).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
   const entryEndDateFormatted = moment(ENTRY_END_DATE).format('YYYY-MM-DDTHH:mm:ss') + 'Z';
 
-  users.forEach(user => {
-    promises.push(fetch(API_URL + `/user/${user.id}/time-entries?start=${entryStartDateFormatted}&end=${entryEndDateFormatted}`, {
+  const userIdsToRemove: string[] = []
+
+  for (const user of users) {
+    const response = await fetch(API_URL + `/user/${user.id}/time-entries?start=${entryStartDateFormatted}&end=${entryEndDateFormatted}`, {
       headers: {
         'x-api-key': API_KEY,
         'content-type': 'application/json',
       },
-    }))
-  });
+    })
 
-  const responses = await Promise.all(promises);
-  const userIdsToRemove: string[] = []
-
-  for (const response of responses) {
     const timeEntries: any = await response.json()
 
     if (timeEntries.length > 0) {
-      userIdsToRemove.push(timeEntries[0].userId)
-      console.log(`User ${users.find((user: any) => user.id === timeEntries[0].userId)?.email} already has time entry`)
+      userIdsToRemove.push(user.id)
+      console.log(`User ${user.email} already has time entry`)
     }
   }
 
@@ -234,7 +219,7 @@ const filterUsersAlreadyHaveTimeEntry = async (users: any[]) => {
 
     if (users.length > 0) {
       await assignUsersToProject(users.map((user: any) => user.id));
-      await insertTimeEntryInParallel(users);
+      await insertTimeEntryForUsers(users);
     }
   } catch (error) {
     console.log(error)
