@@ -80,6 +80,8 @@ const filterUsersBasedOnEmailsFile = async () => {
     },
   })
 
+  if (response && !response.ok) throw await response.text();
+
   const users: any = await response.json()
 
   const filteredUsers: any[] = []
